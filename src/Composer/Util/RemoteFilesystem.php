@@ -275,7 +275,25 @@ class RemoteFilesystem
             $errorMessage .= preg_replace('{^file_get_contents\(.*?\): }', '', $msg);
         });
         try {
-            $result = file_get_contents($fileUrl, false, $ctx);
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $fileUrl);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER,true);
+            curl_setopt($ch, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
+            curl_setopt($ch, CURLOPT_HEADER, false);
+            curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $result = curl_exec($ch);
+            curl_close($ch);
+            if(($error = curl_error($ch))) {
+
+                $this->io->overwriteError("    Downloading: <error>Failed</error>");
+                print_r($error);
+                return false;
+            }
+
+            goto _testjump;
+            //$result = file_get_contents($fileUrl, false, $ctx);
 
             $contentLength = !empty($http_response_header[0]) ? $this->findHeaderValue($http_response_header, 'content-length') : null;
             if ($contentLength && Platform::strlen($result) < $contentLength) {
@@ -386,6 +404,7 @@ class RemoteFilesystem
             }
         }
 
+_testjump:
         // handle copy command if download was successful
         if (false !== $result && null !== $fileName && !$isRedirect) {
             if ('' === $result) {
